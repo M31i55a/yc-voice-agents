@@ -11,7 +11,7 @@ before revealing any prescription information or taking any action, then handles
 refills and status questions. All backend calls are mocked (see mock_backend.py),
 so it runs with no external dependencies beyond the AI services.
 
-Pipeline: Nemotron Speech Streaming STT → Nemotron-3-Super-120B LLM → Gradium TTS, with direct
+Pipeline: Gradium STT → Anthropic Claude LLM → Gradium TTS, with direct
 function tools registered on the LLM context.
 
 Run the bot using::
@@ -63,7 +63,7 @@ from pipecat.workers.runner import WorkerRunner
 
 from language_router import LanguagePreferenceProcessor
 from mock_backend import PATIENTS
-from nemotron_llm import VLLMOpenAILLMService
+from pipecat.services.anthropic.llm import AnthropicLLMService
 from stt_provider import create_stt_service, get_stt_provider
 from video_avatar import (
     AVATAR_PROVIDER_NONE,
@@ -524,55 +524,12 @@ async def run_bot(
     stt = await create_stt_service(audio_in_sample_rate=audio_in_sample_rate)
     logger.info(f"Speech-to-text provider requested: {get_stt_provider()}")
 
-    # LLM service — Nemotron-3-Super-120B served by vLLM (OpenAI-compatible chat
-    # completions at /v1). vLLM exposes the Chat Completions API, not the Responses
-    # API, so we use OpenAILLMService (not OpenAIResponsesLLMService). The live
-    # endpoint serves the model as "nemotron-3-super" (per its /v1/models).
-    #
-    # Reasoning ("thinking") toggle — Nemotron is controlled per-request via
-    # chat_template_kwargs.enable_thinking, forwarded through the OpenAI client's
-    # extra_body (the request-body convention confirmed against this endpoint in
-    # ../aiewf-eval traces). Default OFF for low-latency voice. To ENABLE, set
-    # NEMOTRON_ENABLE_THINKING=true; to DISABLE, leave unset/false.
-    #
-    # CAUTION for voice: reasoning is only kept out of the spoken `content` if the
-    # vLLM server runs a reasoning parser (e.g. --reasoning-parser nemotron_v3, which
-    # routes it to a separate `reasoning_content` field). This live endpoint did NOT
-    # surface reasoning_content in testing, so if thinking is enabled and the server
-    # lacks a parser, chain-of-thought would appear inline in `content` and get
-    # spoken. Keep thinking OFF for voice unless the parser is confirmed active.
-    # VLLMOpenAILLMService is a thin OpenAILLMService subclass that reports TTFB to
-    # the first NON-THINKING token (so the metric reflects time-to-first-spoken-word
-    # when reasoning is enabled, not time-to-first-reasoning-token). No-op when
-    # thinking is off. See server/nemotron_llm.py.
-    # Route LLM through the token router (fast, reliable) when available.
-    # Falls back to the hackathon Nemotron endpoint if token router isn't configured.
-    _tr_url = os.getenv("TOKEN_ROUTER_BASE_URL", "").strip()
-    _tr_key = os.getenv("TOKEN_ROUTER_API_KEY", "").strip()
-    if _tr_url and _tr_key:
-        llm_base_url = _tr_url
-        llm_api_key = _tr_key
-        llm_model = os.getenv("FAST_LLM_MODEL", "openai/gpt-4o-mini")
-        llm_extra: dict = {}
-        logger.info(f"LLM: token router → {llm_model}")
-    else:
-        enable_thinking = os.getenv("NEMOTRON_ENABLE_THINKING", "false").lower() == "true"
-        llm_base_url = os.getenv(
-            "NEMOTRON_LLM_URL",
-            "http://nemotron-fleet-alb-1322439314.us-west-2.elb.amazonaws.com/v1",
-        )
-        llm_api_key = os.getenv("NEMOTRON_LLM_API_KEY", "EMPTY")
-        llm_model = os.getenv("NEMOTRON_LLM_MODEL", "nvidia/nemotron-3-super")
-        llm_extra = {"extra_body": {"chat_template_kwargs": {"enable_thinking": enable_thinking}}}
-        logger.info(f"LLM: Nemotron endpoint → {llm_model}")
-
-    llm = VLLMOpenAILLMService(
-        api_key=llm_api_key,
-        base_url=llm_base_url,
-        settings=VLLMOpenAILLMService.Settings(
-            model=llm_model,
+    # LLM service — Anthropic Claude
+    llm = AnthropicLLMService(
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+        settings=AnthropicLLMService.Settings(
+            model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             system_instruction=system_instruction,
-            extra=llm_extra,
         ),
     )
 

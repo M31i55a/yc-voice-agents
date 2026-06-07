@@ -11,7 +11,7 @@ before revealing any prescription information or taking any action, then handles
 refills and status questions. All backend calls are mocked (see mock_backend.py),
 so it runs with no external dependencies beyond the AI services.
 
-Pipeline: Gradium STT → OpenAI Responses LLM → Gradium TTS, with direct
+Pipeline: Gradium STT → Anthropic Claude LLM → Gradium TTS, with direct
 function tools registered on the LLM context.
 
 Run the bot using::
@@ -47,7 +47,7 @@ from pipecat.runner.utils import parse_telephony_websocket
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.gradium.tts import GradiumTTSService
 from pipecat.services.llm_service import FunctionCallParams
-from pipecat.services.openai.responses.llm import OpenAIResponsesLLMService
+from pipecat.services.anthropic.llm import AnthropicLLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
@@ -325,10 +325,10 @@ async def run_bot(
     logger.info(f"Speech-to-text provider requested: {get_stt_provider()}")
 
     # LLM service
-    llm = OpenAIResponsesLLMService(
-        api_key=os.environ["OPENAI_API_KEY"],
-        settings=OpenAIResponsesLLMService.Settings(
-            model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+    llm = AnthropicLLMService(
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+        settings=AnthropicLLMService.Settings(
+            model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             system_instruction=system_instruction,
         ),
     )
