@@ -48,7 +48,7 @@ We forked the starter's flower-shop ordering bot and rebuilt it end to end. **Ne
 ## How we used Cekura, Nemotron, and Pipecat
 
 - **Cekura — eval + self-improvement (the centerpiece).** Cekura runs real scored conversations against the deployed agent. We wired its failure webhooks into an automated loop: a failed scenario becomes a regression test, GPT-5.5 proposes a targeted patch, we redeploy, and Cekura **re-runs the same scenario**. A PR opens **only when the re-run score improves** — so every merged change is a measured gain, not a guess. We aimed Cekura at the security-critical behaviors (no prescription data before identity verification, correct refill handling, DOB-mismatch refusal): across a dozen eval batteries on the deployed agent, our first grounded 8-scenario run passed **4/8** expected outcomes (50%), and after the failures drove a code-level identity guardrail plus turn-taking fixes the post-fix battery passed **6/8 (75%)**.
-- **NVIDIA Nemotron — open weights.** Nemotron 3 Super 120B is the primary LLM (GPT-4.1 is the fallback), and we added an optional NVIDIA Parakeet websocket STT path. Weights stay out of the container — the bot consumes them as hosted services, so it deploys to Pipecat Cloud with no local GPU.
+- **NVIDIA Nemotron — open weights.** Nemotron 3 Super 120B is the primary LLM (with Anthropic Claude and GPT-4.1 as alternatives), and we added an optional NVIDIA Parakeet websocket STT path. Weights stay out of the container — the bot consumes them as hosted services, so it deploys to Pipecat Cloud with no local GPU.
 - **Pipecat — voice + video orchestration.** One pipeline (transport → STT → language router → LLM + tools → TTS → optional avatar) runs identically across local WebRTC, Daily on Pipecat Cloud, and Twilio phone calls.
 
 ## The self-improvement loop
@@ -74,7 +74,7 @@ STT            Gradium (default) · NVIDIA Parakeet websocket (optional, 16 kHz)
    ▼
 Language router   detects English/Spanish from speech + gesture cues
    ▼
-LLM            Nemotron 3 Super 120B (primary) · GPT-4.1 (fallback)
+LLM            Nemotron 3 Super 120B (primary) · Claude (alternative) · GPT-4.1 (fallback)
    ▼
 Pharmacy tools    verify_identity · get_prescriptions · refill_prescription · end_call  → mock_backend.py
    ▼
@@ -84,24 +84,24 @@ Gradium TTS  →  optional video avatar  →  caller
 | Layer                      | Service                                                                    |
 | -------------------------- | -------------------------------------------------------------------------- |
 | **STT**                    | [Gradium](https://gradium.ai) default · NVIDIA Parakeet websocket optional |
-| **LLM**                    | Nemotron 3 Super 120B (NVIDIA/AWS) · GPT-4.1 fallback                      |
+| **LLM**                    | Nemotron 3 Super 120B (NVIDIA/AWS) · Anthropic Claude · GPT-4.1 fallback   |
 | **TTS**                    | [Gradium](https://gradium.ai)                                              |
 | **Transport**              | SmallWebRTC (local) · Daily (Pipecat Cloud) · Twilio (phone)               |
 | **Orchestration / Deploy** | [Pipecat](https://pipecat.ai) · [Pipecat Cloud](https://pipecat.daily.co)  |
 | **Eval / Healing**         | [Cekura](https://cekura.com) · GPT-5.5 patches (via token router)          |
 | **Video UI / Vision**      | WebRTC client in `server/demo_client/` · MediaPipe Tasks Vision            |
 
-Runtime surfaces: **`server/`** (Pipecat agent — `bot-nemotron.py` primary, `bot-gpt.py` fallback), **`server/demo_client/`** (browser video client), the **Twilio websocket path** (8 kHz, avatar disabled), and **`harness/`** (the self-heal loop).
+Runtime surfaces: **`server/`** (Pipecat agent — `bot-nemotron.py` primary, `bot-gpt.py` fallback with Anthropic Claude support), **`server/demo_client/`** (browser video client), the **Twilio websocket path** (8 kHz, avatar disabled), and **`harness/`** (the self-heal loop).
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/quiet-node/yc-voice-agents-hackathon.git
 cd yc-voice-agents-hackathon/server
-cp .env.example .env          # fill GRADIUM_API_KEY, GRADIUM_VOICE_ID, OPENAI_API_KEY…
+cp .env.example .env          # fill GRADIUM_API_KEY, GRADIUM_VOICE_ID, ANTHROPIC_API_KEY…
 # set ENV=local  (required — disables the Cloud-only Krisp filter)
 uv sync
-uv run bot-nemotron.py        # primary (NVIDIA stack) · or: uv run bot-gpt.py
+uv run bot-nemotron.py        # primary (NVIDIA stack) · or: uv run bot-gpt.py (Claude)
 ```
 
 Open **http://localhost:7860** and click **Join now** (first launch ~20s while Pipecat downloads VAD + turn-detection models). You'll get the video UI with device selectors, transcript, vision/gesture badges, avatar status, and language selection as the agent's first question.
@@ -112,7 +112,8 @@ Open **http://localhost:7860** and click **Join now** (first launch ~20s while P
 | Variable                                     | Purpose                                                            |
 | -------------------------------------------- | ------------------------------------------------------------------ |
 | `GRADIUM_API_KEY` / `GRADIUM_VOICE_ID`       | STT + TTS / TTS voice                                              |
-| `OPENAI_API_KEY`                             | GPT-4.1 LLM (bot-gpt only)                                         |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`      | Anthropic Claude LLM (bot-gpt.py, default `claude-sonnet-4-6`)     |
+| `OPENAI_API_KEY`                             | GPT-4.1 LLM (bot-gpt only, alternative to Claude)                  |
 | `STT_PROVIDER`                               | `gradium` (default) · `parakeet` for NVIDIA Parakeet websocket STT |
 | `PARAKEET_STT_URL` / `NVIDIA_ASR_URL`        | Parakeet websocket URL (falls back to `NVIDIA_ASR_URL`)            |
 | `NEMOTRON_LLM_URL` / `NEMOTRON_LLM_MODEL`    | Nemotron endpoint / model ID                                       |
