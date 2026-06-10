@@ -89,7 +89,7 @@ async def get_call_info(call_sid: str) -> dict:
     url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{call_sid}.json"
 
     try:
-        # Use HTTP Basic Auth with aiohttp
+        # Use HTTP Basic Auth with aiohttp 
         auth = aiohttp.BasicAuth(account_sid, auth_token)
 
         async with aiohttp.ClientSession() as session:
@@ -113,6 +113,7 @@ async def get_call_info(call_sid: str) -> dict:
         return {}
 
 
+#run function
 async def run_bot(
     transport: BaseTransport,
     from_number: str | None = None,
