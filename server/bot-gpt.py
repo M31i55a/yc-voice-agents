@@ -324,7 +324,7 @@ async def run_bot(
     stt = await create_stt_service(audio_in_sample_rate=audio_in_sample_rate)
     logger.info(f"Speech-to-text provider requested: {get_stt_provider()}")
 
-    # LLM service
+    # LLM service (OpenAI GPT-4.1 or Anthropic Claude Sonnet, depending on environment).
     llm = AnthropicLLMService(
         api_key=os.environ["ANTHROPIC_API_KEY"],
         settings=AnthropicLLMService.Settings(
