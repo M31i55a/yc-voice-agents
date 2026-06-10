@@ -333,7 +333,7 @@ async def run_bot(
         ),
     )
 
-    # Text-to-Speech service
+    # Text-to-Speech service (Gradium).
     tts = GradiumTTSService(
         api_key=os.environ["GRADIUM_API_KEY"],
         settings=GradiumTTSService.Settings(
