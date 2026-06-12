@@ -113,7 +113,7 @@ async def get_call_info(call_sid: str) -> dict:
         return {}
 
 
-#run function
+#run function with transport and other params
 async def run_bot(
     transport: BaseTransport,
     from_number: str | None = None,
