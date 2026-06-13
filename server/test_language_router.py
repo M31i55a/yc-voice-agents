@@ -41,3 +41,34 @@ def test_explicit_language_names_can_switch_later():
     assert spanish.language == "Spanish"
     assert english is not None
     assert english.language == "English"
+
+
+def test_bonjour_selects_french_even_after_menu():
+    cue = detect_language_cue("Bonjour", selection_pending=False)
+
+    assert cue is not None
+    assert cue.language == "French"
+    assert cue.reason == "french_word"
+
+
+def test_french_menu_number_selects_french_only_while_pending():
+    cue = detect_language_cue("3", selection_pending=True)
+
+    assert cue is not None
+    assert cue.language == "French"
+
+    assert detect_language_cue("3", selection_pending=False) is None
+
+
+def test_explicit_french_can_switch_later():
+    french = detect_language_cue("Parlez francais", selection_pending=False)
+
+    assert french is not None
+    assert french.language == "French"
+
+
+def test_trois_selects_french_while_pending():
+    cue = detect_language_cue("trois", selection_pending=True)
+
+    assert cue is not None
+    assert cue.language == "French"

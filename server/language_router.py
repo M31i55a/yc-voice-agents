@@ -32,6 +32,15 @@ _SPANISH_ALWAYS_PATTERNS = [
     )
 ]
 
+_FRENCH_ALWAYS_PATTERNS = [
+    re.compile(pattern)
+    for pattern in (
+        r"\b(french|francais|français)\b",
+        r"\b(en\s+)?francais\b",
+        r"\b(bonjour|merci|parlez|parle|oui|pharmacie|ordonnance|medicament|médicament|svp|s'il vous plaît)\b",
+    )
+]
+
 _ENGLISH_EXPLICIT_PATTERNS = [
     re.compile(pattern)
     for pattern in (
@@ -58,6 +67,15 @@ _SELECTION_ENGLISH_PATTERNS = [
     )
 ]
 
+_SELECTION_FRENCH_PATTERNS = [
+    re.compile(pattern)
+    for pattern in (
+        r"^(3|three|trois)$",
+        r"^(number|option|choice)\s+(3|three|trois)$",
+        r"^(3|three|trois)\s+(please|s'il vous plaît|svp)$",
+    )
+]
+
 
 def detect_language_cue(
     text: str,
@@ -73,12 +91,17 @@ def detect_language_cue(
     if _matches_any(_SPANISH_ALWAYS_PATTERNS, normalized):
         return LanguageCue("Spanish", "es", "spanish_word")
 
+    if _matches_any(_FRENCH_ALWAYS_PATTERNS, normalized):
+        return LanguageCue("French", "fr", "french_word")
+
     if _matches_any(_ENGLISH_EXPLICIT_PATTERNS, normalized):
         return LanguageCue("English", "en", "explicit_english")
 
     if selection_pending and len(normalized.split()) <= 4:
         if _matches_any(_SELECTION_SPANISH_PATTERNS, normalized):
             return LanguageCue("Spanish", "es", "language_menu_selection")
+        if _matches_any(_SELECTION_FRENCH_PATTERNS, normalized):
+            return LanguageCue("French", "fr", "language_menu_selection")
         if _matches_any(_SELECTION_ENGLISH_PATTERNS, normalized):
             return LanguageCue("English", "en", "language_menu_selection")
 
@@ -131,6 +154,14 @@ def _language_context_message(language: str) -> str:
             "next response, speak Spanish only unless the caller asks to switch. "
             "Do not ask the language preference again. Briefly confirm in "
             "Spanish, then continue the pharmacy flow."
+        )
+
+    if language == "French":
+        return (
+            "LANGUAGE_CONTEXT: The caller selected French. Starting with your "
+            "next response, speak French only unless the caller asks to switch. "
+            "Do not ask the language preference again. Briefly confirm in "
+            "French, then continue the pharmacy flow."
         )
 
     return (
